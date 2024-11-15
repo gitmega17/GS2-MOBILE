@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento de Edifício Inteligente</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Body */
+        body {
+            background-color: #e4e4e4c5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+    
+        /* Edifício Container */
+        .edificio {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 30px;
+            margin: 0 auto;
+            width: 100%;
+            height: 100%;
+            max-width: 1200px;
+            border-radius: 12px;
+            background-color: #78b4f0;
+            border: none;
+        }
+    
+        /* Andar Individual */
+        .andar {
+            background-color: #fff;
+            border-radius: 12px;
+            width: calc(33% - 20px);
+            height: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+    
+        .andar:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+    
+        /* Sensor Container */
+        .sensor {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Garante que o conteúdo fique centralizado verticalmente */
+            text-align: center; /* Centraliza o texto horizontalmente */
+            margin: 20px 0;
+            width: 100%; /* Garantir que ocupe toda a largura disponível */
+        }
+    
+        /* Sensor Button */
+        .sensor-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #007bff;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
+        }
+    
+        .sensor-button:hover {
+            background-color: #0056b3;
+        }
+    
+        /* Countdown */
+        .countdown {
+            font-size: 1rem;
+            color: #6c757d;
+            margin-top: 15px;
+        }
+    
+        /* Status */
+        .status {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin-top: 10px;
+        }
+    
+        .status-item {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+    
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .andar {
+                width: calc(50% - 20px);
+            }
+        }
+    
+        @media (max-width: 480px) {
+            .andar {
+                width: 100%;
+            }
+        }
+    </style>
+    
+
+    <script>
+        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzMxNzAxNjUxfQ.TVAmO7HYaqMDNAUNBN_K-ASwgljShxUx4njDgnXmc3Y";
+
+        const floors = [
+            { floor_id: 1, name: '1º Andar', countdown: 30, temperature: null, occupancy: 0, lighting: 'Desligado' },
+            { floor_id: 2, name: '2º Andar', countdown: 30, temperature: null, occupancy: 0, lighting: 'Desligado' },
+            { floor_id: 3, name: '3º Andar', countdown: 30, temperature: null, occupancy: 0, lighting: 'Desligado' },
+            { floor_id: 4, name: '4º Andar', countdown: 30, temperature: null, occupancy: 0, lighting: 'Desligado' },
+            { floor_id: 5, name: '5º Andar', countdown: 30, temperature: null, occupancy: 0, lighting: 'Desligado' },
+        ];
+
+        const simulateTemperature = () => {
+            const historicalTemperatures = [22, 23, 24, 25, 26, 27, 28, 29, 30]; // Exemplo de temperaturas históricas
+            const randomIndex = Math.floor(Math.random() * historicalTemperatures.length);
+            return historicalTemperatures[randomIndex]; // Retorna uma temperatura aleatória
+        };
+
+        const simulateOccupancy = (currentOccupancy) => {
+            // Alterna entre 0 e 1 para ocupação com base no valor atual
+            return currentOccupancy === 1 ? 0 : 1; // Se ocupado, passa para vazio e vice-versa
+        };
+
+        const simulateLighting = (occupancy) => {
+            return occupancy === 1 ? 'Ligado' : 'Desligado'; // Iluminação ligada se ocupação for 1
+        };
+
+        const sendData = async (floor) => {
+            try {
+                if (!token) {
+                    await authenticate(floor); // Autentica se o token não existir
+                }
+
+                const temperature = simulateTemperature();
+                const occupancy = floor.occupancy; // Mantém o estado atual de ocupação
+                const lighting = simulateLighting(occupancy);
+
+                // Se a temperatura for maior que 25, ajusta para 23
+                const adjustedTemperature = temperature > 25 ? 23 : temperature;
+
+                await fetch('http://localhost:3000/dados-sensores', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        floor_id: floor.floor_id,
+                        temperature: adjustedTemperature,
+                        occupancy: occupancy,
+                        lighting: lighting,
+                    }),
+                });
+
+                floor.temperature = adjustedTemperature;
+                floor.lighting = lighting;
+
+                // Alterar a exibição de status e manter visível na tela
+                document.getElementById(`temperature-${floor.floor_id}`).textContent = `${adjustedTemperature} °C`;
+
+                if (occupancy == 1) {
+                    document.getElementById(`occupancy-${floor.floor_id}`).textContent = 'Ocupado';
+                    document.getElementById(`lighting-${floor.floor_id}`).textContent = 'Ligado';
+                } else {
+                    document.getElementById(`occupancy-${floor.floor_id}`).textContent = 'Vazio';
+                    document.getElementById(`lighting-${floor.floor_id}`).textContent = 'Desligado';
+                }
+
+            } catch (error) {
+                console.error(`Erro ao enviar dados do andar ${floor.name}:`, error.message);
+            }
+        };
+
+        const updateCountdown = () => {
+            floors.forEach(floor => {
+                const countdownElement = document.getElementById(`countdown-${floor.floor_id}`);
+
+                if (floor.countdown > 0) {
+                    floor.countdown--;
+                    countdownElement.textContent = `Próximo envio automático em ${floor.countdown} segundos`;
+                } else {
+                    sendData(floor);
+                    floor.countdown = 60;
+                    countdownElement.textContent = `Próximo envio automático em ${floor.countdown} segundos`;
+                }
+            });
+        };
+
+        const handleSendButtonClick = (floorId) => {
+            const floor = floors.find(f => f.floor_id === floorId);
+            // Alterna a ocupação
+            floor.occupancy = simulateOccupancy(floor.occupancy);
+            sendData(floor);
+            floor.countdown = 60;
+            document.getElementById(`countdown-${floor.floor_id}`).textContent = `Próximo envio automático em ${floor.countdown} segundos`;
+        };
+
+        setInterval(updateCountdown, 1000); // Atualiza o contador a cada 1 segundo
+    </script>
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Monitoramento de Edifício Inteligente</h1>
+        <h3 class="text-center mb-4">Monitoramento de Temperatura, Ocupação e Iluminação</h3>
+        <h4 class="text-center mb-4">Yuri Yve RM 551358</h4>
+
+        <p class="text-center mb-5">Cada andar enviará dados automaticamente a cada 60 segundos ou manualmente ao clicar no botão correspondente.</p>
+
+        <div class="row">
+            <!-- Andar 1 -->
+            <div id="andar-1" class="col-12 col-md-4 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <h3>1º Andar</h3>
+                        <div class="sensor">
+                            <p id="countdown-1" class="countdown">Próximo envio automático em 60 segundos</p>
+                            <p id="temperature-1" class="status">0 °C</p>
+                            <p id="occupancy-1" class="status">Vazio</p>
+                            <p id="lighting-1" class="status">Desligado</p>
+                            <button class="btn btn-primary sensor-button" onclick="handleSendButtonClick(1)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Andar 2 -->
+            <div id="andar-2" class="col-12 col-md-4 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <h3>2º Andar</h3>
+                        <div class="sensor">
+                            <p id="countdown-2" class="countdown">Próximo envio automático em 60 segundos</p>
+                            <p id="temperature-2" class="status">0 °C</p>
+                            <p id="occupancy-2" class="status">Vazio</p>
+                            <p id="lighting-2" class="status">Desligado</p>
+                            <button class="btn btn-primary sensor-button" onclick="handleSendButtonClick(2)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Andar 3 -->
+            <div id="andar-3" class="col-12 col-md-4 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <h3>3º Andar</h3>
+                        <div class="sensor">
+                            <p id="countdown-3" class="countdown">Próximo envio automático em 60 segundos</p>
+                            <p id="temperature-3" class="status">0 °C</p>
+                            <p id="occupancy-3" class="status">Vazio</p>
+                            <p id="lighting-3" class="status">Desligado</p>
+                            <button class="btn btn-primary sensor-button" onclick="handleSendButtonClick(3)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Andar 4 -->
+            <div id="andar-4" class="col-12 col-md-4 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <h3>4º Andar</h3>
+                        <div class="sensor">
+                            <p id="countdown-4" class="countdown">Próximo envio automático em 60 segundos</p>
+                            <p id="temperature-4" class="status">0 °C</p>
+                            <p id="occupancy-4" class="status">Vazio</p>
+                            <p id="lighting-4" class="status">Desligado</p>
+                            <button class="btn btn-primary sensor-button" onclick="handleSendButtonClick(4)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Andar 5 -->
+            <div id="andar-5" class="col-12 col-md-4 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <h3>5º Andar</h3>
+                        <div class="sensor">
+                            <p id="countdown-5" class="countdown">Próximo envio automático em 60 segundos</p>
+                            <p id="temperature-5" class="status">0 °C</p>
+                            <p id="occupancy-5" class="status">Vazio</p>
+                            <p id="lighting-5" class="status">Desligado</p>
+                            <button class="btn btn-primary sensor-button" onclick="handleSendButtonClick(5)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+
+</html>
